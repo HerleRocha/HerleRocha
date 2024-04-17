@@ -1,0 +1,63 @@
+import csv
+import numpy as np
+from tqdm import tqdm
+
+CSV_FILE = "D:/loto/lotofacil_data.csv"
+NUM_GRUPOS = 21
+NUM_SIMULACOES = 10000000
+
+def ler_numeros_sorteados():
+    numeros_sorteados = []
+    try:
+        with open(CSV_FILE, newline='') as file:
+            reader = csv.reader(file, delimiter=';')
+            next(reader)  # Pular cabeçalho
+            for row in reader:
+                numeros = [int(numero) for numero in row[2:17]]
+                numeros_sorteados.append(numeros)
+    except FileNotFoundError:
+        print("Arquivo não encontrado em:", CSV_FILE)
+        exit(1)
+    return numeros_sorteados
+
+def gerar_grupos(numeros_sorteados):
+    # Calcular a frequência de cada número nos concursos anteriores
+    frequencias = np.zeros(25)
+    for numeros in numeros_sorteados:
+        for numero in numeros:
+            frequencias[numero-1] += 1
+    # Normalizar as frequências para que elas somem 1
+    frequencias = frequencias / np.sum(frequencias)
+
+    grupos = []
+    for _ in range(NUM_GRUPOS):
+        grupo = []
+        while len(grupo) < 15:
+            numero_sorteado = np.random.choice(range(1, 26), p=frequencias)
+            if numero_sorteado not in grupo:
+                grupo.append(numero_sorteado)
+        grupo.sort()
+        grupos.append(grupo)
+    return grupos
+
+def calcular_probabilidades(grupos, numeros_sorteados):
+    probabilidade_grupos = np.zeros(NUM_GRUPOS)
+    for i, grupo in enumerate(tqdm(grupos, desc="Calculando probabilidades")):
+        num_vitorias = 0
+        for _ in range(NUM_SIMULACOES):
+            numeros_simulados = np.random.choice(range(1, 26), size=15, replace=False)
+            if all(numero in numeros_simulados for numero in grupo):
+                num_vitorias += 1
+        probabilidade_grupos[i] = num_vitorias / NUM_SIMULACOES
+    return probabilidade_grupos
+
+def imprimir_resultados(grupos, probabilidade_grupos):
+    print("Grupos gerados:")
+    for i, (grupo, probabilidade) in enumerate(zip(grupos, probabilidade_grupos)):
+        print(f"Grupo {i+1}: {grupo} (Probabilidade: {probabilidade:.100%})")
+
+# Execução do programa
+numeros_sorteados = ler_numeros_sorteados()
+grupos = gerar_grupos(numeros_sorteados)
+probabilidade_grupos = calcular_probabilidades(grupos, numeros_sorteados)
+imprimir_resultados(grupos, probabilidade_grupos)
